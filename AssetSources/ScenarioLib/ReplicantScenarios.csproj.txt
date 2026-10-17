@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>12.0</LangVersion>
+    <AssemblyName>ReplicantScenarios</AssemblyName>
+    <Nullable>disable</Nullable>
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="/tmp/claude-0/-home-claude/8be3be8e-82b5-54a5-bd42-3f6ef37667af/scratchpad/tml8/tml/tModLoader.dll"><Private>false</Private></Reference>
+    <Reference Include="/tmp/claude-0/-home-claude/8be3be8e-82b5-54a5-bd42-3f6ef37667af/scratchpad/tml8/tml/Libraries/**/*.dll" Exclude="/tmp/claude-0/-home-claude/8be3be8e-82b5-54a5-bd42-3f6ef37667af/scratchpad/tml8/tml/Libraries/Native/**;/tmp/claude-0/-home-claude/8be3be8e-82b5-54a5-bd42-3f6ef37667af/scratchpad/tml8/tml/Libraries/**/runtime*/**;/tmp/claude-0/-home-claude/8be3be8e-82b5-54a5-bd42-3f6ef37667af/scratchpad/tml8/tml/Libraries/**/*.resources.dll;/tmp/claude-0/-home-claude/8be3be8e-82b5-54a5-bd42-3f6ef37667af/scratchpad/tml8/tml/Libraries/tModCodeAssist/**"><Private>false</Private></Reference>
+    <Reference Include="/tmp/claude-0/-home-claude/8be3be8e-82b5-54a5-bd42-3f6ef37667af/scratchpad/iv/obj/Release/net8.0/InnoVault.dll"><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

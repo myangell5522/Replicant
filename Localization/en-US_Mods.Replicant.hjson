@@ -1,0 +1,206 @@
+# Replicant — English text.
+# tModLoader adds any missing keys here automatically after a build.
+
+NPCs: {
+	Re.DisplayName: Re
+	Requiem.DisplayName: Requiem
+	Refrain.DisplayName: Refrain
+}
+
+Items: {
+	SealedVerse: {
+		DisplayName: Sealed Verse
+		Tooltip:
+			'''
+			A black tablet, warm to the touch
+			Something inside it is still trying to finish a sentence
+			Summons Re
+			'''
+	}
+
+	CrackedVerse: {
+		DisplayName: Cracked Verse
+		Tooltip:
+			'''
+			[Testing] Brings Re to its last breath and starts the riddle immediately
+			Single player only
+			'''
+	}
+
+	FrayedVerse: {
+		DisplayName: Frayed Verse
+		Tooltip:
+			'''
+			[Testing] Opens the dimension (when InnoVault allows it) and wakes Requiem and Refrain
+			While they fight, skips their song ahead to the next story beat
+			Single player only
+			'''
+	}
+}
+
+Projectiles: {
+	GlyphBolt.DisplayName: Burning Glyph
+	GooOrb.DisplayName: Black Goo
+	GlyphLance.DisplayName: Inscribed Lance
+	RuneSigil.DisplayName: Sigil
+	SongOrb.DisplayName: Song Sphere
+	EchoGhost.DisplayName: Echo
+	BellSigil.DisplayName: Bell
+	VerseChain.DisplayName: Line of Verse
+	DuetBeam.DisplayName: Duet
+}
+
+Bestiary: {
+	Re: A shade of black slime that wears glyphs like scars. It remembers being someone. It does not remember who.
+	Requiem: The elder of two sisters written out of Re's remains. She sings slowly, so that nothing is forgotten.
+	Refrain: The younger sister. She sings the same song twice, in case the first time wasn't heard.
+}
+
+TitleCard.Subtitle: The Shade That Remembers
+
+Riddle: {
+	Question:
+		'''
+		I wear the face of someone you lost.
+		I speak with a voice that was never mine.
+		Strike me down, and you strike down the one you came to save.
+		What am I?
+		'''
+	Answer0: A shadow.
+	Answer1: A puppet.
+	Answer2: A memory.
+	Answer3: A Gestalt.
+	Answer4: Your reflection.
+	# Response0 is used when the correct answer is picked, Response1..4 for wrong picks (by pick number),
+	# Response6 always closes the riddle after the fifth pick.
+	Response0: ...Yes. And still, you raise your blade.
+	Response1: No. Look closer.
+	Response2: No. You are not listening.
+	Response3: No. Is that what you tell yourself?
+	Response4: No... Does it even matter?
+	Response5: Nothing you choose will undo what you have done.
+	Response6: It never mattered which one you chose.
+}
+
+Configs: {
+	ReClientConfig: {
+		DisplayName: Replicant — Visuals
+
+		ScreenShake: {
+			Label: Screen shake
+			Tooltip: Camera shake from Re's attacks and the death sequence.
+		}
+
+		FlashIntensity: {
+			Label: Flash intensity
+			Tooltip: Brightness of full-screen flashes (0 disables them).
+		}
+
+		SkipRiddleCutscene: {
+			Label: Skip the riddle
+			Tooltip: Skips the eyes and riddle, but still plays the final burst.
+		}
+	}
+}
+
+Twins: {
+	Speaker0: Requiem
+	Speaker1: Refrain
+	Speaker2: Requiem & Refrain
+
+	Lines: {
+		Intro1: Sister... we're awake. Someone came all this way.
+		Intro2: Then let us sing for them. It's the only thing we were made for.
+		Intro3: Don't worry. It won't hurt for long. It never does.
+		False1: You strike well. The song carries every blow.
+		False2: Again! Again! ...Why won't you stop?
+		False3: Have you noticed? Nothing you take from us stays taken.
+		False4: Your numbers keep falling. Ours don't. Doesn't that frighten you?
+		False5: Listen. The song is about to breathe.
+		Reveal1: Did you think we could be killed by someone who doesn't remember us?
+		Reveal2: Every wound you gave us... we were only writing it down.
+		Reveal3: Now we will read it back to you.
+		True1: This is our real voice!
+		True2: There are no more rehearsals.
+		True3: Keep up, keep up! The song is ending, can't you hear it?
+		True4: If we are only copies... then whose grief is this?
+		# a = Requiem, b = Refrain
+		Falla: ...Refrain. Keep singing. Don't stop for me.
+		Fallb: Ah... sister, I'm sorry... I couldn't hold the note...
+		Griefa: ...Then I will finish the song for both of us.
+		Griefb: No. No, no, no— you don't get to take her too!
+		Last1a: So this is how the song ends... quietly.
+		Last1b: It's so quiet without her...
+		Last2: Remember us. Even if no one else does.
+	}
+
+	Attacks: {
+		Movement: Movement
+		Reprise: — reprise: the same song, sung truly —
+
+		Intro: {
+			Title: Requiem & Refrain
+			Sub: Two voices written out of one wound
+		}
+
+		Awakening: {
+			Title: The True Song
+			Sub: Every wound you gave them, read back to you
+		}
+
+		Lullaby: {
+			Title: Lullaby of Ash
+			Sub: Arms of light unwinding from the staff — gold breaks, black does not
+		}
+
+		Bells: {
+			Title: Seven Bells
+			Sub: Each bell rings a circle closed. Find the one way through
+		}
+
+		Verse: {
+			Title: Verse Unbound
+			Sub: Lines of scripture cut the air, and slowly turn
+		}
+
+		OilRain: {
+			Title: Black Rain
+			Sub: Oil falls from a sky that is not there
+		}
+
+		EchoDash: {
+			Title: Echo
+			Sub: Every step she takes is taken twice
+		}
+
+		Score: {
+			Title: The Score
+			Sub: Five lines, and every note is played at you
+		}
+
+		Canon: {
+			Title: Canon
+			Sub: A phrase in gold, answered in black
+		}
+
+		Glissando: {
+			Title: Glissando
+			Sub: She runs the length of the sky, shedding petals
+		}
+
+		DuetBeam: {
+			Title: Duet
+			Sub: A single note held between two voices. Stay in the silence
+		}
+
+		LyricWall: {
+			Title: Lyric Wall
+			Sub: Black verses must be passed; gold verses can be cut
+		}
+
+		LilyStorm: {
+			Title: Lily Requiem
+			Sub: The field answers their song
+		}
+	}
+}

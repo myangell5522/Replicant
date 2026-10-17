@@ -1,0 +1,140 @@
+// ReplicantScenarios — the small add-on assembly that talks to InnoVault's Scenarios API.
+//
+// Why a separate assembly: the Scenarios API only exists in newer InnoVault builds (GitHub, 1.9.102+).
+// If Replicant itself referenced those types, Replicant would fail to BUILD whenever an older InnoVault
+// is installed. Instead this file is compiled separately (see build.sh next to it) into
+// Assets/Bin/ReplicantScenarios.bin, which Replicant loads at runtime only when the installed InnoVault
+// has Scenarios. It knows nothing about Replicant: everything mod-specific is passed in as delegates.
+//
+// (Kept as .cs.txt so tModLoader does not compile it as part of Replicant.)
+
+using System;
+using System.Collections.Generic;
+using InnoVault.Scenarios;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Terraria;
+using Terraria.ModLoader;
+using Terraria.WorldBuilding;
+
+namespace ReplicantScenarios
+{
+	public static class ScenarioEntry
+	{
+		internal static Action OnArrive;
+		internal static Action<SpriteBatch> DrawLoading;
+		internal static Func<GenPass> MakePass;
+		internal static Func<int> LoadingMusic;
+		internal static string SkyKey;
+		internal static int Width, Height, Surface, EntryX;
+
+		/// <summary>Registers the dimension with InnoVault. Call from Mod.Load.</summary>
+		public static void Install(Mod mod, Action onArrive, Action<SpriteBatch> drawLoading, Func<GenPass> makePass, Func<int> loadingMusic,
+			string skyKey, int width, int height, int surface, int entryX)
+		{
+			OnArrive = onArrive;
+			DrawLoading = drawLoading;
+			MakePass = makePass;
+			LoadingMusic = loadingMusic;
+			SkyKey = skyKey;
+			Width = width;
+			Height = height;
+			Surface = surface;
+			EntryX = entryX;
+			mod.AddContent(new ReplicantDimension());
+		}
+
+		public static void Uninstall()
+		{
+			OnArrive = null;
+			DrawLoading = null;
+			MakePass = null;
+			LoadingMusic = null;
+		}
+
+		public static bool CanTravel() => ScenarioDirector.Availability == ScenarioRejectReason.None;
+		public static bool InDimension() => ScenarioDirector.IsIn<ReplicantDimension>();
+		public static bool IsTraveling() => ScenarioDirector.IsTraveling;
+		public static bool Travel() => TravelWhy() == null;
+		/// <summary>null when the travel was accepted, otherwise InnoVault's reason.</summary>
+		public static string TravelWhy()
+		{
+			ScenarioResult r = ScenarioDirector.Travel<ReplicantDimension>();
+			return r.Accepted ? null : r.ToString();
+		}
+		/// <summary>Why a travel could not start right now (null when it can).</summary>
+		public static string AvailabilityWhy()
+		{
+			ScenarioRejectReason r = ScenarioDirector.Availability;
+			return r == ScenarioRejectReason.None ? null : r.ToString();
+		}
+		public static bool ReturnHome() => ScenarioDirector.ReturnHome().Accepted;
+	}
+
+	/// <summary>
+	/// The Replicant dimension: an oily black plain of low mounds and glyph lilies under a dark amber sky.
+	/// Single player only (InnoVault stages are not available in multiplayer).
+	/// </summary>
+	[Autoload(false)]
+	public class ReplicantDimension : VaultScenario
+	{
+		protected override void Compose(ScenarioComposer composer)
+		{
+			composer
+				.Add(new ScenarioStage(ScenarioEntry.Width, ScenarioEntry.Height) {
+					Persistence = StagePersistence.Persistent,
+					Version = 2,
+					SurfaceLevel = ScenarioEntry.Surface + 40,
+					RockLevel = ScenarioEntry.Surface + 80,
+					Passes = passes => passes.Add(ScenarioEntry.MakePass()),
+				})
+				.Add(new ScenarioAnchors { { ScenarioAnchors.Entry, ScenarioEntry.EntryX, ScenarioEntry.Surface } })
+				.Add(new ScenarioEnvironment {
+					Sky = ScenarioEntry.SkyKey,
+					Priority = SceneEffectPriority.BossHigh,
+				})
+				.Add(new ScenarioRules {
+					NoWeather = true,
+					NoEvents = true,
+					NoTownNPCs = true,
+					NoNaturalSpawns = true,
+					FreezeTiles = true,
+					FixedDayTime = false,
+					FixedTime = 0.0,
+					RespawnBehavior = ScenarioSpawnBehavior.ReturnHome,
+				})
+				.Add(new ScenarioProtection {
+					NoMining = true,
+					NoPlacing = true,
+					NoExplosions = true,
+					NoHammering = true,
+					NoWallBreaking = true,
+					NoLiquidTools = true,
+				})
+				// no curtain: the explosion itself hides the jump between worlds
+				.Add(new ScenarioCurtain { CloseFrames = 0, OpenFrames = 0 })
+				.Add(new BurstLoadingScreen());
+		}
+
+		protected override void OnStart() => ScenarioEntry.OnArrive?.Invoke();
+	}
+
+	/// <summary>While the worlds are swapped, Replicant keeps drawing its explosion.</summary>
+	public class BurstLoadingScreen : ScenarioLoadingScreen
+	{
+		public override int Music => ScenarioEntry.LoadingMusic?.Invoke() ?? 0;
+
+		public override void Draw(SpriteBatch spriteBatch, in ScenarioLoadingContext context)
+		{
+			spriteBatch.End();
+			spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, Matrix.Identity);
+			try {
+				ScenarioEntry.DrawLoading?.Invoke(spriteBatch);
+			}
+			finally {
+				spriteBatch.End();
+				spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, Main.UIScaleMatrix);
+			}
+		}
+	}
+}
