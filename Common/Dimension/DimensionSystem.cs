@@ -84,6 +84,20 @@ namespace Replicant.Common.Dimension
 		private static float camLift;
 
 		/// <summary>
+		/// The world rectangle actually on screen, zoom included (zooming out past 1 shows more than
+		/// screenPosition + screen size — the field must be drawn across all of it).
+		/// </summary>
+		public static Rectangle VisibleWorld {
+			get {
+				Matrix m = Main.GameViewMatrix.TransformationMatrix;
+				float zx = MathF.Max(0.1f, m.M11), zy = MathF.Max(0.1f, m.M22);
+				float left = Main.screenPosition.X - m.M41 / zx;
+				float top = Main.screenPosition.Y - m.M42 / zy;
+				return new Rectangle((int)left, (int)top, (int)(Main.screenWidth / zx) + 2, (int)(Main.screenHeight / zy) + 2);
+			}
+		}
+
+		/// <summary>
 		/// The camera rides a little above the player in the dimension: more sky (and sisters), less dead ground.
 		/// </summary>
 		public override void ModifyScreenPosition()
@@ -140,10 +154,11 @@ namespace Replicant.Common.Dimension
 			Texture2D tex = ReTex.LilyField;
 			Texture2D glow = ReTex.LilyFieldGlow;
 			int fw = tex.Width / 8, fh = tex.Height;
-			int x0 = Math.Max(0, (int)(Main.screenPosition.X / 16f) - 3);
-			int x1 = Math.Min(Main.maxTilesX - 1, (int)((Main.screenPosition.X + Main.screenWidth) / 16f) + 3);
-			int y0 = Math.Max(0, (int)(Main.screenPosition.Y / 16f) - 3);
-			int y1 = Math.Min(Main.maxTilesY - 1, (int)((Main.screenPosition.Y + Main.screenHeight) / 16f) + 5);
+			Rectangle view = VisibleWorld;
+			int x0 = Math.Max(0, view.Left / 16 - 3);
+			int x1 = Math.Min(Main.maxTilesX - 1, view.Right / 16 + 3);
+			int y0 = Math.Max(0, view.Top / 16 - 3);
+			int y1 = Math.Min(Main.maxTilesY - 1, view.Bottom / 16 + 5);
 			float t = Main.GlobalTimeWrappedHourly;
 			Player p = Main.LocalPlayer;
 
@@ -251,10 +266,11 @@ namespace Replicant.Common.Dimension
 			Texture2D px = Terraria.GameContent.TextureAssets.MagicPixel.Value;
 			sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.GameViewMatrix.TransformationMatrix);
 			const int step = 4;
-			float sx0 = Main.screenPosition.X;
-			int width = (int)(Main.screenWidth / Main.GameViewMatrix.Zoom.X) + 2 * step + 64;
-			for (int sx = -32; sx < width; sx += step) {
-				float wx = sx0 + sx;
+			Rectangle view = VisibleWorld;
+			int startSx = (int)MathF.Floor((view.Left - Main.screenPosition.X) / step) * step - 32;
+			int endSx = startSx + view.Width + 2 * step + 64;
+			for (int sx = startSx; sx < endSx; sx += step) {
+				float wx = Main.screenPosition.X + sx;
 				float h = DimensionTerrain.SurfaceAt(wx / 16f) * 16f;
 				float y = h - Main.screenPosition.Y;
 				float slope = (DimensionTerrain.SurfaceAt((wx + 8f) / 16f) - DimensionTerrain.SurfaceAt((wx - 8f) / 16f)) * 16f / 16f;
@@ -282,8 +298,8 @@ namespace Replicant.Common.Dimension
 		private static void DrawGroundHaze(SpriteBatch sb, float t)
 		{
 			Texture2D fog = ReTex.Fog;
-			float sx0 = Main.screenPosition.X;
-			int width = (int)(Main.screenWidth / Main.GameViewMatrix.Zoom.X) + 400;
+			float sx0 = VisibleWorld.Left;
+			int width = VisibleWorld.Width + 400;
 			for (int layer = 0; layer < 3; layer++) {
 				float spacing = 150f + layer * 60f;
 				float speed = 9f + layer * 6f;

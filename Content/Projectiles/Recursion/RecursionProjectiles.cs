@@ -87,10 +87,15 @@ namespace Replicant.Content.Projectiles.Recursion
 				sb.Draw(px, q, new Rectangle(0, 0, 1, 1), ReUtils.Ember.Additive(0.5f * k), rot, new Vector2(0.5f), new Vector2(10f, 3f * k + 1f), SpriteEffects.None, 0f);
 			}
 			FX.Bloom(sb, pos, ReUtils.Ember, 26f, 0.4f * wake);
-			// the needle: a pixel shard, white core in a gold blade
-			sb.Draw(px, pos, new Rectangle(0, 0, 1, 1), new Color(30, 12, 6) * wake, rot, new Vector2(0.5f), new Vector2(26f, 7f), SpriteEffects.None, 0f);
-			sb.Draw(px, pos, new Rectangle(0, 0, 1, 1), ReUtils.Gold.Additive(wake), rot, new Vector2(0.5f), new Vector2(22f, 4f), SpriteEffects.None, 0f);
-			sb.Draw(px, pos + d * 3f, new Rectangle(0, 0, 1, 1), Color.White.Additive(wake), rot, new Vector2(0.5f), new Vector2(12f, 2f), SpriteEffects.None, 0f);
+			// the needle: an obsidian thorn, its ember pulse running to the tip (4 frames)
+			Texture2D tex = ModContent.Request<Texture2D>("Replicant/Assets/Textures/Projectiles/VerseNeedle", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
+			Texture2D glow = ModContent.Request<Texture2D>("Replicant/Assets/Textures/Projectiles/VerseNeedle_Glow", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
+			int fh = tex.Height / 4;
+			Rectangle src = new(0, ((int)(Timer / 3) % 4) * fh, tex.Width, fh);
+			Vector2 origin = new(tex.Width * 0.6f, fh / 2f);
+			float sc = 0.9f + 0.1f * wake;
+			sb.Draw(tex, pos, src, Color.White * wake, rot, origin, sc, SpriteEffects.None, 0f);
+			sb.Draw(glow, pos, src, Color.White.Additive(wake), rot, origin, sc, SpriteEffects.None, 0f);
 			return false;
 		}
 	}

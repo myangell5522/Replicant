@@ -11,10 +11,12 @@ Requirements: Python 3.10+, `pip install numpy scipy pillow soundfile`
 | `parts.py` | crown, skirt, tentacle segments, boss-map icon |
 | `fx.py`    | goo orb, lance, goo chunks, items, divider — then runs `fx2.py` |
 | `fx2.py`   | hi-res soft glows (bloom, ring, flare, trail, thread, fog, vignette, grain, ash), glyph atlas, glyph strip, glyph bolt, the 3-layer sigil + blurred glow layers |
-| `eyes.py`  | cutscene eyes: 6 corruption levels (columns) x 10 animation rows |
+| `eyes.py`  | cutscene eyes: 6 corruption levels (columns) x 10 animation rows, plus the pre-scaled sky copy |
 | `sfx.py`   | all `.ogg` sound effects plus `Music/Silence.ogg` and `Music/RiddleAmbience.ogg` |
 | `centipede.py` | Recursion (phase 3): head (4 jaw frames), body (4 leg frames), tail, glow maps, boss icon |
 | `sfx3.py`  | Recursion's roar, screech, rush, bite, portal, eruption, chain lock, needle, death, chitter |
+| `hack_art.py` | Intrusion minigame: animated shell blocks (gold / cracked / obsidian) and the player's ship |
+| `needle.py` | Recursion's volley needle (4 frames) |
 | `art.py`   | shared palette, dithering, SDF shapes, procedural glyph alphabet |
 
 Run from this folder, e.g. `python body.py`. Palettes live at the top of `art.py`.

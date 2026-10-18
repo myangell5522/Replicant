@@ -88,13 +88,13 @@ namespace Replicant.Content.NPCs.Twins
 				Projectile.NewProjectile(NPC.GetSource_FromAI(), Anchor - new Vector2(0, AriaTimeline.RiftHeight), Vector2.Zero, ModContent.ProjectileType<SkyRift>(), 0, 0f, Main.myPlayer, NPC.whoAmI);
 			// the camera looks up at the wound as it opens
 			if (!Main.dedServ && t >= AriaTimeline.RiftSpawn && t < AriaTimeline.OpenEnd + 30 && p.whoAmI == Main.myPlayer)
-				ScreenFX.Focus(Anchor - new Vector2(0, AriaTimeline.RiftHeight * 0.55f), ReUtils.Bump(ReUtils.InverseLerp(AriaTimeline.RiftSpawn, AriaTimeline.OpenEnd + 30, t)) * 0.6f);
+				ScreenFX.Focus(Anchor - new Vector2(0, AriaTimeline.RiftHeight * 0.4f), ReUtils.Bump(ReUtils.InverseLerp(AriaTimeline.RiftSpawn, AriaTimeline.OpenEnd + 30, t)) * 0.3f);
 
 			// the whole stage pulls back to one fixed framing while the wound is open, then comes home
 			if (!Main.dedServ && this is Requiem && t >= AriaTimeline.RiftSpawn && t < AriaTimeline.End) {
 				float zin = ReUtils.EaseInOutSine(ReUtils.InverseLerp(AriaTimeline.RiftSpawn, AriaTimeline.RiftSpawn + 60, t));
 				float zout = 1f - ReUtils.EaseInOutSine(ReUtils.InverseLerp(AriaTimeline.Shatter, AriaTimeline.End, t));
-				ScreenFX.HoldFixedZoom(0.86f, zin * zout);
+				ScreenFX.HoldFixedZoom(0.9f, zin * zout);
 			}
 
 			Projectile rift = SkyRift.Find();
@@ -119,7 +119,8 @@ namespace Replicant.Content.NPCs.Twins
 				}
 			}
 			// Refrain sings rings of breakable notes around herself during the descent
-			if (this is Refrain && t >= AriaTimeline.DescentStart && t < AriaTimeline.Flood && t % 50 == 0) {
+			// (removed: rings of notes on top of the lances made the Aria unreadable)
+			if (false && this is Refrain && t >= AriaTimeline.DescentStart && t < AriaTimeline.Flood && t % 50 == 0) {
 				int n = 12;
 				for (int i = 0; i < n; i++)
 					Orb(NPC.Center, (MathHelper.TwoPi * i / n + t * 0.1f).ToRotationVector2() * 4.5f, i % 4 == 0 ? SongOrb.Dark : SongOrb.Gold, SongOrb.Curve, 0.008f);
@@ -136,9 +137,10 @@ namespace Replicant.Content.NPCs.Twins
 				Subtitles.Push(Subtitles.Both, "Mods.Replicant.Twins.Lines.Verdict", 220);
 				Main.NewText(Language.GetTextValue("Mods.Replicant.Twins.ShelterHint"), ReUtils.PaleGold);
 			}
-			if (this is Requiem && rift != null && t > AriaTimeline.ShelterAt && t < AriaTimeline.Flood - 20 && t % 9 == 0) {
-				Vector2 from = SkyRift.Point(rift, Main.rand.NextFloat(0.15f, 0.85f));
-				Orb(from, new Vector2(Main.rand.NextFloat(-0.6f, 0.6f), 4f), SongOrb.Dark, SongOrb.Straight, 1.01f);
+			// while you run for the sanctuary, single spears keep falling from the wound around you (never into the dome)
+			if (this is Requiem && rift != null && t > AriaTimeline.ShelterAt && t < AriaTimeline.Flood - 30 && t % 16 == 0 && Server && !Sanctuary.IsSheltered(p)) {
+				float u = MathHelper.Clamp(0.5f + (p.Center.X + Main.rand.NextFloat(-260f, 260f) - rift.Center.X) / AriaTimeline.RiftWidth, 0.04f, 0.96f);
+				Projectile.NewProjectile(NPC.GetSource_FromAI(), SkyRift.Point(rift, u), Vector2.UnitY, ModContent.ProjectileType<Content.Projectiles.GlyphLance>(), ReUtils.ProjDamage(110), 0f, Main.myPlayer, 36, 22f);
 			}
 			// ---- the Verdict
 			if (t == AriaTimeline.Flood && !Main.dedServ && this is Requiem) {

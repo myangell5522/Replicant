@@ -30,6 +30,18 @@ namespace Replicant.Common.Dimension
 			}
 		}
 
+		// ---- the Aria's rift is the sky's own wound: SkyRift publishes where (screen Y) and how open, each frame
+		public static float RiftOpen, RiftWide, RiftScreenY;
+		private static int riftHold;
+
+		public static void HoldRift(float open, float wide, float screenY)
+		{
+			RiftOpen = open;
+			RiftWide = wide;
+			RiftScreenY = screenY;
+			riftHold = 3;
+		}
+
 		// ---- the eyes in the sky (the devour): held each tick by a cutscene, they fade when let go
 		public static float Eyes, Dark;
 		private static float eyesTarget, darkTarget;
@@ -49,6 +61,12 @@ namespace Replicant.Common.Dimension
 		public override void Update(GameTime gameTime)
 		{
 			intensity = MathHelper.Clamp(intensity + (active ? 0.02f : -0.02f), 0f, 1f);
+			if (riftHold > 0)
+				riftHold--;
+			else {
+				RiftOpen = MathHelper.Lerp(RiftOpen, 0f, 0.08f);
+				RiftWide = MathHelper.Lerp(RiftWide, 0f, 0.08f);
+			}
 			if (eyesHold > 0)
 				eyesHold--;
 			else
@@ -118,8 +136,10 @@ namespace Replicant.Common.Dimension
 			float treeScale = H / 640f * 0.95f;
 			DrawFountain(spriteBatch, treePos, treeScale, intensity, aw, t);
 			// ---- the sky splits during the revelation: a torn wound across the zenith, black inside, burning at the lips
-			if (aw > 0.01f)
-				DrawSkyWound(spriteBatch, W, H, aw * intensity, t);
+			// (during the Aria this same wound is the rift: it sinks to where the attack is poured from and widens)
+			float woundA = MathF.Max(aw, RiftOpen);
+			if (woundA > 0.01f)
+				DrawSkyWound(spriteBatch, W, H, woundA * intensity, t);
 
 			// ---- the eyes, enormous and far away, looking down through the sky
 			if (Eyes > 0.01f)
@@ -202,7 +222,9 @@ namespace Replicant.Common.Dimension
 			Texture2D px = TextureAssets.MagicPixel.Value;
 			Texture2D th = ReTex.Thread;
 			float open = ReUtils.EaseOutCubic(a);
-			float baseY = H * 0.17f;
+			float riftK = ReUtils.EaseInOutSine(MathHelper.Clamp(RiftOpen * 1.5f, 0f, 1f));
+			float baseY = MathHelper.Lerp(H * 0.17f, MathHelper.Clamp(RiftScreenY, H * 0.06f, H * 0.4f), riftK);
+			float widen = 1f + RiftOpen * 0.7f + RiftWide * 2.6f;
 			const int col = 5;
 			float reach = open;                                // grows outward from the centre
 			for (int x = 0; x < W; x += col) {
@@ -214,7 +236,7 @@ namespace Replicant.Common.Dimension
 				float path = MathF.Sin(u * 9f + 1f) * 22f + MathF.Sin(u * 31f + t * 0.3f) * 7f + (ReUtils.Hash01(x / 15, 3) - 0.5f) * 10f;
 				float env = MathF.Pow(1f - fromMid, 0.55f);
 				float jag = 0.55f + 0.45f * ReUtils.Hash01(x / col, 7) + 0.15f * MathF.Sin(t * 4f + x * 0.11f);
-				float half = (2f + 26f * env * jag) * open * (H / 1080f + 0.2f);
+				float half = (2f + 26f * env * jag) * open * (H / 1080f + 0.2f) * widen;
 				float y = baseY + path;
 				sb.Draw(px, new Rectangle(x, (int)(y - half), col, (int)(half * 2f + 1)), new Color(5, 2, 2) * a);
 				Color lip = Color.Lerp(new Color(255, 170, 70), Color.White, 0.35f + 0.35f * MathF.Sin(t * 5f + x * 0.07f));
@@ -227,7 +249,7 @@ namespace Replicant.Common.Dimension
 				}
 			}
 			// light breathing out of it
-			FX.Bloom(sb, new Vector2(W / 2f, baseY), new Color(255, 160, 70), W * 0.55f * open, 0.22f * a * (0.85f + 0.15f * MathF.Sin(t * 1.7f)), 1f, 0.16f);
+			FX.Bloom(sb, new Vector2(W / 2f, baseY), new Color(255, 160, 70), W * 0.55f * open, (0.22f + RiftOpen * 0.15f + RiftWide * 0.3f) * a * (0.85f + 0.15f * MathF.Sin(t * 1.7f)), 1f, 0.16f + RiftWide * 0.2f);
 			// hairline cracks branching across the sky
 			for (int k = 0; k < 22; k++) {
 				float u = ReUtils.Hash01(k, 31);
@@ -236,7 +258,7 @@ namespace Replicant.Common.Dimension
 				float x = u * W;
 				Vector2 p = new(x, baseY + MathF.Sin(u * 9f + 1f) * 22f);
 				float ang = (ReUtils.Hash01(k, 32) < 0.5f ? -1f : 1f) * MathHelper.PiOver2 + (ReUtils.Hash01(k, 33) - 0.5f) * 1.8f;
-				float len = (40f + ReUtils.Hash01(k, 34) * 160f) * open;
+				float len = (40f + ReUtils.Hash01(k, 34) * 160f) * open * (widen * 0.8f + 0.2f);
 				for (int s = 0; s < 4; s++) {
 					ang += (ReUtils.Hash01(k, 40 + s) - 0.5f) * 0.9f;
 					Vector2 q = p + ang.ToRotationVector2() * len / 4f;

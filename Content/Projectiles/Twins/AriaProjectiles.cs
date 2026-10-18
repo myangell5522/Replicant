@@ -114,23 +114,21 @@ namespace Replicant.Content.Projectiles.Twins
 			float top = mid.Y;
 			// only what is on screen
 			int x0 = (int)MathF.Max(left, -40f), x1 = (int)MathF.Min(left + w, Main.screenWidth / Main.GameViewMatrix.Zoom.X + 40f);
-			// a soft body of light behind the streams
-			sb.Draw(px, new Rectangle(x0, (int)top, x1 - x0, (int)d), new Color(255, 190, 90).Additive(0.16f * a));
-			sb.Draw(px, new Rectangle(x0, (int)(top + d * 0.5f), x1 - x0, (int)(d * 0.5f)), new Color(255, 230, 170).Additive(0.12f * a));
-			// streams
-			for (int x = x0 - x0 % 6; x < x1; x += 6) {
-				int col = (int)((x - left) / 6f);
-				float hw = ReUtils.Hash01(col, 50), hs = ReUtils.Hash01(col, 51);
-				float sw = 2f + hw * 5f;
-				float flick = 0.55f + 0.45f * MathF.Sin(time * (10f + hs * 8f) + col);
-				float len = d * (0.85f + 0.15f * hs);
-				Color c = Color.Lerp(new Color(255, 170, 60), Color.White, hw * 0.7f);
-				sb.Draw(px, new Rectangle(x, (int)top, (int)sw, (int)len), c.Additive(0.22f * a * flick));
-				// script riding down the stream
-				if (col % 4 == 0) {
-					float y = (time * (700f + hs * 500f) + hw * 3000f) % MathF.Max(1f, len);
-					sb.Draw(ReTex.GlyphAtlasGlow, new Vector2(x + sw / 2f, top + y), ReTex.GlyphFrame(col + (int)(time * 8f)), Color.White.Additive(0.75f * a), 0f, new Vector2(7, 9), 1.3f, SpriteEffects.None, 0f);
-				}
+			// a soft sheet of light, brightening toward its falling front (no hard stripes)
+			const int bands = 10;
+			for (int b = 0; b < bands; b++) {
+				float y0 = top + d * b / bands;
+				float k = (b + 1) / (float)bands;
+				sb.Draw(px, new Rectangle(x0, (int)y0, x1 - x0, (int)(d / bands) + 1), Color.Lerp(new Color(255, 160, 60), new Color(255, 236, 190), k).Additive((0.06f + 0.16f * k) * a));
+			}
+			// a few slow, thin streams of script riding down inside it
+			for (int x = x0 - x0 % 34; x < x1; x += 34) {
+				int col = (int)((x - left) / 34f);
+				float hs = ReUtils.Hash01(col, 51);
+				float len = d * (0.7f + 0.3f * hs);
+				sb.Draw(px, new Rectangle(x, (int)top, 1, (int)len), new Color(255, 230, 170).Additive(0.18f * a));
+				float y = (time * (420f + hs * 300f) + hs * 3000f) % MathF.Max(1f, len);
+				sb.Draw(ReTex.GlyphAtlasGlow, new Vector2(x, top + y), ReTex.GlyphFrame(col + (int)(time * 6f)), Color.White.Additive(0.6f * a), 0f, new Vector2(7, 9), 1.1f, SpriteEffects.None, 0f);
 			}
 			// the churning front
 			float front = top + d;
@@ -157,49 +155,12 @@ namespace Replicant.Content.Projectiles.Twins
 			float wide = Wide;
 			float time = Main.GlobalTimeWrappedHourly;
 			Vector2 sp = Main.screenPosition;
-			const int col = 8;
-			int n = (int)(AriaTimeline.RiftWidth / col);
-			// grow from the middle outward
-			float reach = ReUtils.EaseOutCubic(ReUtils.InverseLerp(AriaTimeline.RiftSpawn, AriaTimeline.OpenEnd, AriaT));
-			for (int i = 0; i < n; i++) {
-				float u = i / (float)n;
-				if (MathF.Abs(u - 0.5f) * 2f > reach)
-					continue;
-				Vector2 c = Point(Projectile, u) - sp;
-				float edgeFade = MathF.Min(1f, (1f - MathF.Abs(u - 0.5f) * 2f) * 6f);
-				float jag = 0.6f + 0.4f * ReUtils.Hash01(i, 3) + 0.25f * MathF.Sin(time * 3f + i * 0.4f);
-				float half = (2f + open * (22f + wide * 80f)) * jag * edgeFade;
-				// the black inside
-				sb.Draw(px, new Rectangle((int)c.X, (int)(c.Y - half), col, (int)(half * 2f)), new Color(4, 2, 2) * MathF.Min(1f, open * 1.4f + 0.2f));
-				// burning lips
-				Color lip = Color.Lerp(ReUtils.Gold, Color.White, 0.3f + 0.3f * MathF.Sin(time * 5f + i));
-				sb.Draw(px, new Rectangle((int)c.X, (int)(c.Y - half - 2), col, 3), lip.Additive(0.9f * edgeFade));
-				sb.Draw(px, new Rectangle((int)c.X, (int)(c.Y + half - 1), col, 3), lip.Additive(0.9f * edgeFade));
-				// script falling inside the wound
-				if (open > 0.2f && i % 3 == 0) {
-					float fall = (time * 60f + ReUtils.Hash01(i, 7) * 200f) % (half * 2f + 1f);
-					sb.Draw(ReTex.GlyphAtlasGlow, c + new Vector2(col / 2f, -half + fall), ReTex.GlyphFrame(i + (int)(time * 4f)), ReUtils.Gold.Additive(0.7f * open), 0f, new Vector2(7, 9), 0.8f, SpriteEffects.None, 0f);
-				}
-			}
-			// light bleeding out along its length
+			// the fissure itself is the sky's own wound (the one hanging over the whole true fight): it sinks to
+			// this rift's height and opens wider, so there is only ever one tear in the sky
+			Vector2 onScreen = Vector2.Transform(Projectile.Center - sp, Main.GameViewMatrix.TransformationMatrix);
+			Common.Dimension.DimensionSky.HoldRift(open, wide, onScreen.Y);
 			Vector2 mid = Projectile.Center - sp;
-			FX.Bloom(sb, mid, ReUtils.Gold, AriaTimeline.RiftWidth * 0.55f, (0.12f + wide * 0.25f) * open, 1f, 0.06f + wide * 0.1f);
-			// cracks spreading through the sky from the wound
-			if (open > 0.05f) {
-				Texture2D th = ReTex.Thread;
-				for (int k = 0; k < 16; k++) {
-					float u = ReUtils.Hash01(k, 11);
-					Vector2 a = Point(Projectile, u) - sp;
-					float ang = (ReUtils.Hash01(k, 12) < 0.5f ? -1f : 1f) * MathHelper.PiOver2 + (ReUtils.Hash01(k, 13) - 0.5f) * 1.6f;
-					float len = (60f + ReUtils.Hash01(k, 14) * 220f) * open;
-					for (int s = 0; s < 3; s++) {
-						float a2 = ang + (ReUtils.Hash01(k, s + 20) - 0.5f) * 0.8f;
-						Vector2 b = a + a2.ToRotationVector2() * len / 3f;
-						sb.Draw(th, a, null, ReUtils.PaleGold.Additive(0.6f * open), (b - a).ToRotation(), new Vector2(0, th.Height / 2f), new Vector2((b - a).Length() / th.Width, 1.5f / th.Height), SpriteEffects.None, 0f);
-						a = b;
-					}
-				}
-			}
+			FX.Bloom(sb, mid, ReUtils.Gold, AriaTimeline.RiftWidth * 0.45f, (0.06f + wide * 0.18f) * open, 1f, 0.05f + wide * 0.1f);
 			// the Verdict: a wall of light floods down out of it
 			float t = AriaT;
 			if (t >= AriaTimeline.Flood && t < AriaTimeline.CollapseEnd + 20)
@@ -450,16 +411,17 @@ namespace Replicant.Content.Projectiles.Twins
 			}
 			float hh = Half;
 			// body
-			sb.Draw(px, new Rectangle((int)(c.X - hh), (int)c.Y, (int)(hh * 2f), (int)len), new Color(255, 180, 80).Additive(0.18f * fade));
-			for (float x = -hh; x < hh; x += 5f) {
-				int col = (int)((x + MaxHalf) / 5f);
+			// a soft column: bright core, dim edges (no busy stripes)
+			for (int b = 0; b < 8; b++) {
+				float w = hh * (1f - b / 8f);
+				sb.Draw(px, new Rectangle((int)(c.X - w), (int)c.Y, (int)(w * 2f), (int)len), new Color(255, 200, 110).Additive(0.065f * fade));
+			}
+			sb.Draw(px, new Rectangle((int)c.X - 1, (int)c.Y, 3, (int)len), Color.White.Additive(0.45f * fade));
+			for (float x = -hh; x < hh; x += 30f) {
+				int col = (int)((x + MaxHalf) / 30f);
 				float hs = ReUtils.Hash01(col, 61);
-				float flick = 0.6f + 0.4f * MathF.Sin(time * (12f + hs * 10f) + col);
-				sb.Draw(px, new Rectangle((int)(c.X + x), (int)c.Y, 2 + (int)(hs * 3f), (int)len), Color.Lerp(new Color(255, 190, 90), Color.White, hs).Additive(0.25f * fade * flick));
-				if (col % 3 == 0) {
-					float y = (time * (900f + hs * 700f) + hs * 2000f) % len;
-					sb.Draw(ReTex.GlyphAtlasGlow, new Vector2(c.X + x, c.Y + y), ReTex.GlyphFrame(col + (int)(time * 10f)), Color.White.Additive(0.8f * fade), 0f, new Vector2(7, 9), 1.2f, SpriteEffects.None, 0f);
-				}
+				float y = (time * (700f + hs * 500f) + hs * 2000f) % len;
+				sb.Draw(ReTex.GlyphAtlasGlow, new Vector2(c.X + x, c.Y + y), ReTex.GlyphFrame(col + (int)(time * 8f)), Color.White.Additive(0.7f * fade), 0f, new Vector2(7, 9), 1.2f, SpriteEffects.None, 0f);
 			}
 			// burning edges
 			for (int side = -1; side <= 1; side += 2) {

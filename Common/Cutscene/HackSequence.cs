@@ -53,6 +53,8 @@ namespace Replicant.Common.Cutscene
 		private static readonly List<(Vector2 pos, float life, bool gold)> bursts = new();
 		private static int playTime;
 		private static float shake;
+		private static readonly float[] segFlash = new float[Segments];
+		private static float shipAim = -MathHelper.PiOver2;
 
 		public static bool Active => phase != Phase.None;
 		/// <summary>The world is frozen (twins, their projectiles) while this is true.</summary>
@@ -144,6 +146,8 @@ namespace Replicant.Common.Cutscene
 		private static void UpdateGame()
 		{
 			playTime++;
+			for (int i = 0; i < Segments; i++)
+				segFlash[i] *= 0.82f;
 			float hpK = coreHp / (float)CoreMaxHp;
 			bool rage = hpK < 0.5f;
 			ringRot += rage ? 0.022f : 0.012f;
@@ -193,6 +197,8 @@ namespace Replicant.Common.Cutscene
 			if (--fireCooldown <= 0) {
 				fireCooldown = 7;
 				Vector2 aim = Main.mouseLeft ? ScreenToArena(new Vector2(Main.mouseX, Main.mouseY)) - ship : -ship;
+				if (aim.LengthSquared() > 0.0001f)
+					shipAim = shipAim.AngleLerp(aim.ToRotation(), 0.35f);
 				if (aim.LengthSquared() < 0.0001f)
 					aim = -Vector2.UnitY;
 				aim.Normalize();
@@ -230,8 +236,12 @@ namespace Replicant.Common.Cutscene
 					int seg = SegmentAt(s.Pos);
 					if (segHp[seg] != 0) {
 						dead = true;
+						segFlash[seg] = 1f;
 						if (segHp[seg] > 0) {
 							segHp[seg]--;
+							if (segHp[seg] == 0)
+								for (int q = 0; q < 6; q++)
+									bursts.Add((s.Pos + Main.rand.NextVector2Circular(0.03f, 0.03f), 1f, true));
 							bursts.Add((s.Pos, 1f, true));
 							if (segHp[seg] == 0)
 								SoundEngine.PlaySound(Content.NPCs.Twins.TwinSounds.Shatter with { Volume = 0.35f, Pitch = 0.4f });
@@ -446,17 +456,30 @@ namespace Replicant.Common.Cutscene
 			FX.Bloom(sb, cc, Color.Lerp(new Color(255, 80, 40), ReUtils.Gold, hpK), size * 0.12f, 0.6f * a * pulse);
 			FX.Bloom(sb, cc, Color.White, size * 0.04f, 0.8f * a);
 			// the shell
+			Texture2D shellTex = ModContent.Request<Texture2D>("Replicant/Assets/Textures/Cutscene/HackShell", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
+			Texture2D shellGlow = ModContent.Request<Texture2D>("Replicant/Assets/Textures/Cutscene/HackShell_Glow", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
+			int sfw = shellTex.Width / 4, sfh = shellTex.Height / 3;
 			for (int i = 0; i < Segments; i++) {
 				if (segHp[i] == 0)
 					continue;
 				float ang = ringRot + (i + 0.5f) / Segments * MathHelper.TwoPi;
-				Vector2 p = ArenaToScreen(ang.ToRotationVector2() * 0.28f);
-				float len = size * 0.28f * MathHelper.TwoPi / Segments * 0.42f;
+				// a hit knocks the block outward and lights it up, then it settles
+				float kick = segFlash[i];
+				Vector2 p = ArenaToScreen(ang.ToRotationVector2() * (0.28f + kick * 0.012f)) + Main.rand.NextVector2Circular(kick * 3f, kick * 3f);
+				float len = size * 0.28f * MathHelper.TwoPi / Segments * 0.92f;
 				bool black = segHp[i] < 0;
-				Color fill = black ? new Color(8, 5, 6) : (segHp[i] == 1 ? new Color(160, 90, 20) : gold);
-				sb.Draw(px, p, new Rectangle(0, 0, 1, 1), black ? fill : fill.Additive(0.9f * a), ang + MathHelper.PiOver2, new Vector2(0.5f, 0.5f), new Vector2(len * 2f, size * 0.03f), SpriteEffects.None, 0f);
-				if (black)
-					sb.Draw(px, p, new Rectangle(0, 0, 1, 1), new Color(255, 120, 30).Additive(0.5f * a), ang + MathHelper.PiOver2, new Vector2(0.5f, 0.5f), new Vector2(len * 2f, 2f), SpriteEffects.None, 0f);
+				int row = black ? 2 : segHp[i] == 1 ? 1 : 0;
+				int frame = ((int)(t * 8f) + i) % 4;
+				Rectangle src = new(frame * sfw, row * sfh, sfw, sfh);
+				Vector2 sc = new(len / sfw, len / sfw);
+				float rot = ang + MathHelper.PiOver2;
+				// the outer edge faces out
+				sb.Draw(shellTex, p, src, Color.White * a, rot, new Vector2(sfw / 2f, sfh / 2f), sc, SpriteEffects.FlipVertically, 0f);
+				sb.Draw(shellGlow, p, src, Color.White.Additive(a * (0.8f + 0.2f * MathF.Sin(t * 5f + i))), rot, new Vector2(sfw / 2f, sfh / 2f), sc, SpriteEffects.FlipVertically, 0f);
+				if (kick > 0.05f) {
+					sb.Draw(shellTex, p, src, (black ? new Color(255, 120, 40) : Color.White).Additive(kick * 0.8f), rot, new Vector2(sfw / 2f, sfh / 2f), sc, SpriteEffects.FlipVertically, 0f);
+					FX.Bloom(sb, p, black ? ReUtils.Ember : ReUtils.PaleGold, 30f, kick * 0.5f);
+				}
 			}
 			// bullets
 			foreach (Bullet b in bullets) {
@@ -482,12 +505,12 @@ namespace Replicant.Common.Cutscene
 			}
 			// the player: a small pixel ship, a dash leaves after-images
 			foreach (var tr in trail)
-				DrawShip(sb, ArenaToScreen(tr.pos), 0f, ReUtils.Gold.Additive(0.5f * tr.life * a), 3f);
+				DrawShipSprite(sb, ArenaToScreen(tr.pos), shipAim + MathHelper.PiOver2, ReUtils.Gold.Additive(0.5f * tr.life * a), false);
 			Vector2 sp = ArenaToScreen(ship);
 			bool blink = shipInvuln > 0 && shipInvuln / 4 % 2 == 0 && dashTime <= 0;
 			if (!blink) {
 				FX.Bloom(sb, sp, ReUtils.PaleGold, 30f, 0.5f * a);
-				DrawShip(sb, sp, 0f, Color.White * a, 3f);
+				DrawShipSprite(sb, sp, shipAim + MathHelper.PiOver2, Color.White * a, true);
 			}
 			// dash ready pip
 			if (dashCooldown <= 0)
@@ -520,6 +543,19 @@ namespace Replicant.Common.Cutscene
 			"#..#.#..#",
 			"...#.#...",
 		};
+
+		/// <summary>The ship sprite, nose toward where it fires, engine flickering.</summary>
+		private static void DrawShipSprite(SpriteBatch sb, Vector2 center, float rot, Color color, bool glow)
+		{
+			Texture2D tex = ModContent.Request<Texture2D>("Replicant/Assets/Textures/Cutscene/HackShip", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
+			Texture2D gl = ModContent.Request<Texture2D>("Replicant/Assets/Textures/Cutscene/HackShip_Glow", ReLogic.Content.AssetRequestMode.ImmediateLoad).Value;
+			int fw = tex.Width / 4;
+			Rectangle src = new(((int)(Main.GlobalTimeWrappedHourly * 20f) % 4) * fw, 0, fw, tex.Height);
+			Vector2 origin = new(fw / 2f, tex.Height * 0.45f);
+			sb.Draw(tex, center, src, color, rot, origin, 1.6f, SpriteEffects.None, 0f);
+			if (glow)
+				sb.Draw(gl, center, src, Color.White.Additive(color.A / 255f), rot, origin, 1.6f, SpriteEffects.None, 0f);
+		}
 
 		private static void DrawShip(SpriteBatch sb, Vector2 center, float rot, Color color, float px)
 		{
