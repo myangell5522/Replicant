@@ -65,6 +65,9 @@ namespace Replicant.Common
 		public static Texture2D RequiemGlow => Get("NPCs/Twins/Requiem_Glow").Value;
 		public static Texture2D RefrainSheet => Get("NPCs/Twins/Refrain").Value;
 		public static Texture2D RefrainGlow => Get("NPCs/Twins/Refrain_Glow").Value;
+		public static Texture2D BlockShield => Get("VFX/BlockShield").Value;
+		public static Texture2D LilyField => Get("Tiles/LilyField").Value;
+		public static Texture2D LilyFieldGlow => Get("Tiles/LilyField_Glow").Value;
 
 		// Cutscene
 		public static Texture2D Eyes => Get("Cutscene/Eyes").Value;

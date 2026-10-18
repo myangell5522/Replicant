@@ -13,6 +13,8 @@ Requirements: Python 3.10+, `pip install numpy scipy pillow soundfile`
 | `fx2.py`   | hi-res soft glows (bloom, ring, flare, trail, thread, fog, vignette, grain, ash), glyph atlas, glyph strip, glyph bolt, the 3-layer sigil + blurred glow layers |
 | `eyes.py`  | cutscene eyes: 6 corruption levels (columns) x 10 animation rows |
 | `sfx.py`   | all `.ogg` sound effects plus `Music/Silence.ogg` and `Music/RiddleAmbience.ogg` |
+| `centipede.py` | Recursion (phase 3): head (4 jaw frames), body (4 leg frames), tail, glow maps, boss icon |
+| `sfx3.py`  | Recursion's roar, screech, rush, bite, portal, eruption, chain lock, needle, death, chitter |
 | `art.py`   | shared palette, dithering, SDF shapes, procedural glyph alphabet |
 
 Run from this folder, e.g. `python body.py`. Palettes live at the top of `art.py`.

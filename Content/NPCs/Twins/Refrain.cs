@@ -34,7 +34,15 @@ namespace Replicant.Content.NPCs.Twins
 		private float staffAlpha;
 		private int staffDir = 1;
 
-		protected override int ChooseAttack() => FromBag(StEchoDash, StScore, StCanon, StGlissando);
+		protected override int ChooseAttack()
+		{
+			// the intrusion: once she has woken, she reaches into the player (single player only)
+			if (Awakened && !Grief && Main.netMode == Terraria.ID.NetmodeID.SinglePlayer && FightTicks > TwinsTimeline.RevealEnd + 2400 && FightTicks - TwinsFight.LastHack > 4200) {
+				TwinsFight.LastHack = FightTicks;
+				return StHack;
+			}
+			return FromBag(StEchoDash, StScore, StCanon, StGlissando);
+		}
 
 		protected override void RunAttack(Player p)
 		{
@@ -75,7 +83,7 @@ namespace Replicant.Content.NPCs.Twins
 				}
 			}
 			else if (local == windUp) {
-				NPC.velocity = aim * (Awakened ? 30f : 26f);
+				NPC.velocity = aim * (Awakened ? 30f : 26f) * Tempo;
 				SetPose(TwinPose.Dash);
 				if (Server) {
 					Projectile.NewProjectile(NPC.GetSource_FromAI(), NPC.Center, NPC.velocity, ModContent.ProjectileType<EchoGhost>(), ReUtils.ProjDamage(Awakened ? 120 : 100), 0f, Main.myPlayer, 42, dashLen);
@@ -100,7 +108,46 @@ namespace Replicant.Content.NPCs.Twins
 		}
 
 		/// <summary>She writes a score across the arena: notes hang on five staff lines, then are played at you in order.</summary>
+		/// <summary>
+		/// The Score: she plants a music stand and makes you play it (see RhythmStand). In multiplayer, where the
+		/// duel can't be shared, she writes the old score of notes across the arena instead.
+		/// </summary>
 		private void Score(Player p)
+		{
+			if (Timer <= 1) {
+				bool nearReveal = FightTicks > TwinsTimeline.RevealStart - 1200 && FightTicks < TwinsTimeline.RevealEnd;
+				Sub = Main.netMode != Terraria.ID.NetmodeID.SinglePlayer || nearReveal ? 1 : 0;
+			}
+			if (Sub == 1) {
+				ScoreClassic(p);
+				return;
+			}
+			SetPose(Timer < 30 ? TwinPose.Cast : TwinPose.Sing);
+			if (Timer < 30)
+				Hover(p.Center + new Vector2(Side * 260f, -140f), 14f, 8f);
+			else
+				Dance(p, 440f);
+			if (Timer == 24) {
+				Vector2 at = FindGround(p.Center + new Vector2(-Side * 200f, -60f)) - new Vector2(0, 76f);
+				Projectile.NewProjectile(NPC.GetSource_FromAI(), at, Vector2.Zero, ModContent.ProjectileType<MusicStand>(), 0, 0f, Main.myPlayer);
+				int rows = Grief || Awakened ? Main.rand.Next(2, 4) : Main.rand.Next(1, 3);
+				int notes = Main.rand.Next(4, Awakened ? 8 : 6);
+				var version = Common.Cutscene.RhythmStand.Version.Plain;
+				if (Awakened) {
+					int r = Main.rand.Next(3);
+					version = r == 1 ? Common.Cutscene.RhythmStand.Version.Inverse : r == 2 ? Common.Cutscene.RhythmStand.Version.Fading : version;
+				}
+				if (!Main.dedServ) {
+					Common.Cutscene.RhythmStand.Begin(at, rows, notes, version, NPC.whoAmI);
+					SoundEngine.PlaySound(TwinSounds.Cast, NPC.Center);
+				}
+				Lean(70, 0.35f);
+			}
+			if ((Timer > 40 && !Common.Cutscene.RhythmStand.Active) || Timer > 3000)
+				Enter(StIdle);
+		}
+
+		private void ScoreClassic(Player p)
 		{
 			Hover(HomeSpot(p), 9f);
 			SetPose(Timer < 60 ? TwinPose.Cast : TwinPose.Sing);
@@ -179,9 +226,9 @@ namespace Replicant.Content.NPCs.Twins
 			}
 			else if (local < setup + run) {
 				SetPose(TwinPose.Dash);
-				NPC.velocity = new Vector2(dir * (Awakened ? 25f : 22f), MathF.Sin((local - setup) * 0.2f) * 2f);
-				if (local % (Grief ? 2 : 4) == 0)
-					Orb(NPC.Center, new Vector2(Main.rand.NextFloat(-1f, 1f), -1.5f), SongOrb.Petal, SongOrb.Homing, 0f, ReUtils.ProjDamage(80));
+				NPC.velocity = new Vector2(dir * (Awakened ? 25f : 22f) * Tempo, MathF.Sin((local - setup) * 0.2f) * 2f);
+				if (local % (Grief ? 4 : 7) == 0)
+					Orb(NPC.Center, new Vector2(Main.rand.NextFloat(-1f, 1f), Main.rand.NextFloat(-3f, -1f)), SongOrb.Petal, SongOrb.Homing, 0f, ReUtils.ProjDamage(80));
 				if (!Main.dedServ && local % 6 == 0)
 					SoundEngine.PlaySound(TwinSounds.Note((local - setup) / 6) with { Pitch = -0.5f + (local - setup) / (float)run, Volume = 0.35f }, NPC.Center);
 			}

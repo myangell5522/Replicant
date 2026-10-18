@@ -16,7 +16,7 @@ namespace Replicant.Common.Cutscene
 	public class Cinematic : ModSystem
 	{
 		private static int timer = -1, duration;
-		private static Vector2 focus;
+		private static Vector2 focus, focusTarget;
 		private static float bars;
 		private static float flash;
 		private static int silenceUntil;
@@ -33,13 +33,23 @@ namespace Replicant.Common.Cutscene
 				return;
 			if (Main.LocalPlayer.Distance(worldFocus) > 3000f)
 				return;
+			focusTarget = worldFocus;
+			if (Running) {
+				// already framing something: keep the camera where it is and glide on — never snap back to the
+				// player and in again (that read as a teleport)
+				int held = System.Math.Min(timer, 50);
+				timer = held;
+				duration = held + length;
+				silenceUntil = held + silenceTicks;
+				return;
+			}
 			focus = worldFocus;
 			duration = length;
 			timer = 0;
 			silenceUntil = silenceTicks;
 		}
 
-		public static void SetFocus(Vector2 worldFocus) => focus = worldFocus;
+		public static void SetFocus(Vector2 worldFocus) => focusTarget = worldFocus;
 
 		public static void Flash(float amount) => flash = MathHelper.Max(flash, amount * ModContent.GetInstance<ReClientConfig>().FlashIntensity);
 
@@ -61,6 +71,8 @@ namespace Replicant.Common.Cutscene
 			bars = MathHelper.Lerp(bars, closing ? 0f : 1f, closing ? 0.08f : 0.06f);
 			// camera: glide in, hold, glide back
 			float strength = ReUtils.EaseInOutSine(timer / 50f) * ReUtils.EaseInOutSine((duration - timer) / 50f);
+			// the focus itself glides (critically damped), so a moving subject is followed, not jumped to
+			focus = Vector2.Lerp(focus, focusTarget, 0.075f);
 			ScreenFX.Focus(focus, strength);
 			if (Locked)
 				Main.playerInventory = false;

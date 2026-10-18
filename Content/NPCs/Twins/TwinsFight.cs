@@ -52,6 +52,8 @@ namespace Replicant.Content.NPCs.Twins
 		private static int lastDialogueTick = -1;
 
 		public static bool ReturningHome => returnHomeTimer > 0;
+		/// <summary>Fight-clock tick of the last Aria / hack (-99999 = never this fight).</summary>
+		public static int LastAria = -99999, LastHack = -99999;
 
 		public static int FightTicks => Leader != null ? Leader.FightTicks : Sister?.FightTicks ?? 0;
 
@@ -102,6 +104,7 @@ namespace Replicant.Content.NPCs.Twins
 			AnyTwinAlive = Leader != null || Sister != null;
 			if (!AnyTwinAlive && was) {
 				Revealed.Clear();
+				LastAria = LastHack = -99999;
 				AttackReveal.ResetCount();
 			}
 			if (!AnyTwinAlive && SpawnOnArrival && DimensionBridge.InDimension && !Main.gameMenu && Main.netMode == NetmodeID.SinglePlayer) {
@@ -197,7 +200,7 @@ namespace Replicant.Content.NPCs.Twins
 			if (!Main.dedServ) {
 				Main.LocalPlayer.GetModPlayer<ReplicantPlayer>().PendingReward = true;
 				if (DimensionBridge.InDimension)
-					returnHomeTimer = 60 * 8;
+					returnHomeTimer = EpilogueCutscene.Length + 60;
 			}
 		}
 	}

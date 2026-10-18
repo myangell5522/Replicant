@@ -25,7 +25,7 @@ namespace Replicant.Content.NPCs.Twins
 	/// the revelation and rewind, the awakening, their deaths, movement helpers and all drawing.
 	/// Attacks live in Requiem.cs / Refrain.cs.
 	/// </summary>
-	public abstract class TwinBase : ModNPC
+	public abstract partial class TwinBase : ModNPC
 	{
 		// ---------------------------------------------------------------- states
 		public const int StIntro = 0, StIdle = 1, StHarass = 2, StBlink = 3;
@@ -79,6 +79,7 @@ namespace Replicant.Content.NPCs.Twins
 		private int barLieTimer;
 
 		protected readonly List<int> bag = new();
+		private bool inExtraStep;
 
 		public float Fury => Grief ? 1.55f : Awakened ? 1.3f : 1f;
 		public bool InFalseFight => FightTicks < TwinsTimeline.RevealStart;
@@ -207,9 +208,23 @@ namespace Replicant.Content.NPCs.Twins
 			NPC.netUpdate = true;
 			if (other != null && other.State != StDying) {
 				other.Grief = true;
-				other.State = StIdle;
-				other.Timer = -100;   // she stops to look
+				other.State = StFrenzy;
+				other.Timer = -150;   // she stops to look, then breaks
+				other.Shielded = false;
+				// what one loses, the other inherits: the survivor is made whole again
+				int healed = other.NPC.lifeMax - other.NPC.life;
+				other.NPC.life = other.NPC.lifeMax;
 				other.NPC.netUpdate = true;
+				if (!Main.dedServ) {
+					if (healed > 0)
+						CombatText.NewText(other.NPC.Hitbox, new Color(255, 214, 120), healed, true);
+					Terraria.Audio.SoundEngine.PlaySound(Terraria.ID.SoundID.Item29 with { Pitch = -0.5f, Volume = 0.8f }, other.NPC.Center);
+					for (int k = 0; k < 40; k++) {
+						Vector2 from = Vector2.Lerp(NPC.Center, other.NPC.Center, k / 40f) + Main.rand.NextVector2Circular(20f, 20f);
+						Common.VFX.ParticleSystem.Spark(from, (other.NPC.Center - NPC.Center).SafeNormalize(Vector2.Zero) * Main.rand.NextFloat(4f, 10f), ReUtils.PaleGold, 1.1f, 40);
+					}
+					Common.VFX.ScreenFX.Shake(10f);
+				}
 			}
 		}
 
@@ -258,6 +273,11 @@ namespace Replicant.Content.NPCs.Twins
 
 		public override void AI()
 		{
+			if (HackSequence.FreezeWorld) {
+				// the world holds its breath while the player is inside their code
+				NPC.velocity = Vector2.Zero;
+				return;
+			}
 			NPC.ai[3]++;
 			int t = FightTicks;
 			visualTime++;
@@ -284,6 +304,7 @@ namespace Replicant.Content.NPCs.Twins
 
 			SetPose(TwinPose.Idle);
 			telegraph *= 0.85f;
+			UpdateLife();
 			switch ((int)State) {
 				case StIntro: DoIntro(p); break;
 				case StIdle: DoIdle(p); break;
@@ -297,13 +318,23 @@ namespace Replicant.Content.NPCs.Twins
 						ParticleSystem.Ring(NPC.Center, Accent, 0.05f, 1.1f, 18);
 						ParticleSystem.Flare(StaffTip, Accent, 1.4f, 16);
 						glowBoost = MathF.Max(glowBoost, 0.8f);
+						Bark();
+						Lean(50, 0.22f);
 					}
-					if (Timer < 0)
+					if (IsSpecialState)
+						RunSpecial(p);
+					else if (Timer < 0)
 						DoAnnounce(p);
-					else if (State >= StDuetBeam && State < StReveal)
-						RunDuo(p);
-					else
-						RunAttack(p);
+					else {
+						if (State >= StDuetBeam && State < StReveal) {
+							RunDuo(p);
+							RunTempoSteps(p, RunDuo);
+						}
+						else {
+							RunAttack(p);
+							RunTempoSteps(p, RunAttack);
+						}
+					}
 					break;
 			}
 			Timer++;
@@ -333,6 +364,7 @@ namespace Replicant.Content.NPCs.Twins
 			10 => "Lullaby", 11 => "Bells", 12 => "Verse", 13 => "OilRain",
 			20 => "EchoDash", 21 => "Score", 22 => "Canon", 23 => "Glissando",
 			StDuetBeam => "DuetBeam", StLyricWall => "LyricWall", StLilyStorm => "LilyStorm",
+			StAria => "Aria", StHack => "Intrusion",
 			_ => null,
 		};
 
@@ -439,6 +471,9 @@ namespace Replicant.Content.NPCs.Twins
 		{
 			if (!Server)
 				return;
+			// an extra tempo step happens "between" frames: spread its spawns along her path instead of stacking them
+			if (inExtraStep && Vector2.DistanceSquared(pos, NPC.Center) < 140f * 140f)
+				pos += NPC.velocity * 0.5f + vel * 0.5f;
 			Projectile.NewProjectile(NPC.GetSource_FromAI(), pos, vel, ModContent.ProjectileType<SongOrb>(), damage < 0 ? OrbDamage : damage, 0f, Main.myPlayer, kind, behaviour, param);
 		}
 
@@ -477,7 +512,7 @@ namespace Replicant.Content.NPCs.Twins
 		// ---------------------------------------------------------------- idle / scheduling
 		private void DoIdle(Player p)
 		{
-			Hover(HomeSpot(p), 9f);
+			Dance(p);
 			if (Timer < 0) {
 				// grieving pause
 				SetPose(TwinPose.Hurt);
@@ -489,7 +524,14 @@ namespace Replicant.Content.NPCs.Twins
 			TwinBase other = Sister;
 			bool otherBusy = other != null && other.State >= 10 && other.State < StReveal;
 			// the duo attacks belong to the awakened sisters, led by Requiem
-			if (Awakened && other != null && this is Requiem && !otherBusy && (other.State == StIdle || other.State == StHarass) && Main.rand.NextBool(3) && FightTicks > TwinsTimeline.RevealEnd + 300) {
+			bool duoReady = Awakened && other != null && this is Requiem && !otherBusy && (other.State == StIdle || other.State == StHarass);
+			// the Aria: the sky opens; first 20 s after the awakening, then every 45 s
+			if (duoReady && FightTicks > TwinsTimeline.RevealEnd + 1200 && FightTicks - TwinsFight.LastAria > 2700) {
+				TwinsFight.LastAria = FightTicks;
+				StartDuo(StAria, other, p);
+				return;
+			}
+			if (duoReady && Main.rand.NextBool(3) && FightTicks > TwinsTimeline.RevealEnd + 300) {
 				int duo = Main.rand.Next(3) switch { 0 => StDuetBeam, 1 => StLyricWall, _ => StLilyStorm };
 				StartDuo(duo, other, p);
 				return;
@@ -525,7 +567,7 @@ namespace Replicant.Content.NPCs.Twins
 
 		private void DoHarass(Player p)
 		{
-			Hover(HomeSpot(p), 10f);
+			Dance(p, 320f);
 			int every = Awakened ? 34 : 52;
 			if (Timer > 20 && Timer % every == 0) {
 				SetPose(TwinPose.Cast);
@@ -614,8 +656,8 @@ namespace Replicant.Content.NPCs.Twins
 					if (!Main.dedServ)
 						DimensionSystem.LilyGlowTarget = 1.6f;
 					if (this is Requiem || alone) {
-						if (Timer > 30 && Timer < 250 && Timer % (Grief ? 3 : 5) == 0)
-							Orb(p.Center + new Vector2(Main.rand.NextFloat(-820f, 820f), 560f), new Vector2(Main.rand.NextFloat(-1f, 1f), -Main.rand.NextFloat(5f, 7.5f)), SongOrb.Petal, SongOrb.Homing, 0f, ReUtils.ProjDamage(80));
+						if (Timer > 30 && Timer < 250 && Timer % (Grief ? 6 : 10) == 0)
+							Orb(p.Center + new Vector2(Main.rand.NextFloat(-820f, 820f), 240f), new Vector2(Main.rand.NextFloat(-1f, 1f), -Main.rand.NextFloat(9f, 13f)), SongOrb.Petal, SongOrb.Homing, 0f, ReUtils.ProjDamage(80));
 					}
 					if (Timer % 60 == 30) {
 						Vector2 d = StaffTip.SafeDirectionTo(p.Center);
@@ -639,6 +681,7 @@ namespace Replicant.Content.NPCs.Twins
 			NPC.dontTakeDamage = true;
 			if (r <= 1) {
 				Anchor = p.Center;
+				RhythmStand.Abort();
 				if (Server) {
 					foreach (Projectile proj in Main.ActiveProjectiles) {
 						if (proj.hostile && proj.ModProjectile is IReProjectile)
@@ -704,6 +747,18 @@ namespace Replicant.Content.NPCs.Twins
 			NPC.dontTakeDamage = true;
 			int length = IsLast ? 420 : 170;
 			SetPose(TwinPose.Hurt);
+			// the third verse: she is not allowed to die — something else is listening, and hungry
+			if (DevourCutscene.Holds(NPC.whoAmI)) {
+				NPC.velocity = Vector2.Zero;
+				if (!Main.dedServ)
+					glitch = MathF.Max(glitch, 0.35f + 0.25f * MathF.Sin(Timer * 0.3f));
+				Timer = length - 4;
+				return;
+			}
+			if (IsLast && Timer == length - 2 && DevourCutscene.TryBegin(NPC)) {
+				Timer = length - 4;
+				return;
+			}
 			NPC.velocity *= 0.93f;
 			NPC.velocity.Y += IsLast ? -0.01f : 0.02f;
 			if (!Main.dedServ) {
@@ -731,6 +786,9 @@ namespace Replicant.Content.NPCs.Twins
 					ScreenFX.Shake(IsLast ? 30f : 14f);
 					Cinematic.Flash(IsLast ? 1f : 0.5f);
 					ParticleSystem.GlyphBurst(NPC.Center, IsLast ? 160 : 70, IsLast ? 18f : 11f, 1.2f);
+					// ...and something else was listening the whole time
+					if (IsLast)
+						EpilogueCutscene.Begin();
 					for (int i = 0; i < 3; i++)
 						ParticleSystem.Ring(NPC.Center, i == 1 ? ReUtils.Ember : ReUtils.PaleGold, 0.1f + i * 0.08f, 1.08f + i * 0.02f, 40 + i * 8);
 				}
@@ -792,21 +850,21 @@ namespace Replicant.Content.NPCs.Twins
 			int f;
 			switch (Pose) {
 				case TwinPose.Cast:
-					f = 8 + Math.Min(poseTime / 4, 5);
-					if (poseTime >= 24)
-						f = 12 + (poseTime / 6) % 2;
+					f = 8 + Math.Min(poseTime / 3, 5);
+					if (poseTime >= 18)
+						f = 12 + (poseTime / 4) % 2;
 					break;
 				case TwinPose.Dash:
-					f = 14 + (poseTime / 4) % 4;
+					f = 14 + (poseTime / 3) % 4;
 					break;
 				case TwinPose.Sing:
-					f = 18 + (int)(visualTime / 9) % 4;
+					f = 18 + (int)(visualTime / 6) % 4;
 					break;
 				case TwinPose.Hurt:
-					f = 22 + (int)(visualTime / 8) % 2;
+					f = 22 + (int)(visualTime / 5) % 2;
 					break;
 				default:
-					f = (int)(visualTime / 7) % 8;
+					f = (int)(visualTime / 5) % 8;
 					break;
 			}
 			NPC.frame = new Rectangle(0, f * FrameH, FrameW, FrameH);
@@ -842,7 +900,7 @@ namespace Replicant.Content.NPCs.Twins
 			}
 
 			// --- afterimages (dash, or always faintly once awakened)
-			float trail = Pose == TwinPose.Dash ? 1f : NPC.velocity.Length() > 9f ? 0.6f : Awakened ? 0.35f : 0f;
+			float trail = Pose == TwinPose.Dash ? 1f : MathF.Max(zipTrail, NPC.velocity.Length() > 9f ? 0.6f : Awakened ? 0.35f : 0f);
 			if (trail > 0f) {
 				for (int i = NPC.oldPos.Length - 1; i > 0; i--) {
 					if (NPC.oldPos[i] == Vector2.Zero)
@@ -922,6 +980,8 @@ namespace Replicant.Content.NPCs.Twins
 			}
 
 			DrawMotes(sb, pos, op, back: false);
+			DrawBlock(sb, pos, op);
+			DrawSpecialOverlay(sb, pos, op);
 			// where her eyes should be, the light of the written-over glyphs (Requiem: through the blindfold)
 			{
 				Vector2 face = pos + new Vector2(NPC.spriteDirection * 1f, -70f);

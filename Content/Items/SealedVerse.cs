@@ -107,6 +107,8 @@ namespace Replicant.Content.Items
 	/// </summary>
 	public class FrayedVerse : ModItem
 	{
+		private static int debugStep;
+
 		public override string Texture => "Replicant/Assets/Textures/Items/CrackedVerse";
 
 		public override void SetDefaults()
@@ -125,6 +127,20 @@ namespace Replicant.Content.Items
 		{
 			if (player.whoAmI != Main.myPlayer)
 				return true;
+			// the third verse: each use takes Recursion to its next threshold (rewind → execute → death)
+			foreach (NPC n in Main.ActiveNPCs) {
+				if (n.ModNPC is Content.NPCs.Recursion.RecursionHead h) {
+					if (h.State == Content.NPCs.Recursion.RecursionHead.StScripted || h.State == Content.NPCs.Recursion.RecursionHead.StDying)
+						return true;
+					float k = n.life / (float)n.lifeMax;
+					n.life = k > 0.58f ? (int)(n.lifeMax * 0.55f) : k > 0.26f ? (int)(n.lifeMax * 0.24f) : 1;
+					if (n.life == 1)
+						n.SimpleStrikeNPC(9999, 0);
+					return true;
+				}
+			}
+			if (DevourCutscene.Active)
+				return true;
 			if (!TwinsFight.AnyTwinAlive) {
 				// go to the dimension first when possible; the sisters wake there
 				if (!Common.Dimension.DimensionBridge.InDimension) {
@@ -142,6 +158,32 @@ namespace Replicant.Content.Items
 				return true;
 			}
 			int now = TwinsFight.FightTicks;
+			if (now >= TwinsTimeline.RevealEnd) {
+				// in the true fight: each use calls the next set piece (Aria → Intrusion → one sister falls)
+				TwinBase req = null, refr = null;
+				foreach (NPC n in Main.ActiveNPCs) {
+					if (n.ModNPC is Requiem r) req = r;
+					if (n.ModNPC is Refrain f) refr = f;
+				}
+				bool alone = req == null || refr == null;
+				switch (alone ? 2 : debugStep++ % 3) {
+					case 0:
+						if (req != null && refr != null)
+							req.DebugStartAria(refr);
+						break;
+					case 1:
+						refr?.DebugForce(TwinBase.StHack);
+						break;
+					case 2:
+						// one sister falls; with only one left, she falls too (and the third verse begins)
+						if (req != null && refr != null)
+							req.NPC.SimpleStrikeNPC(req.NPC.life + 10, 0);
+						else
+							(req ?? refr)?.NPC.SimpleStrikeNPC((req ?? refr).NPC.life + 10, 0);
+						break;
+				}
+				return true;
+			}
 			int jump = now < TwinsTimeline.RevealStart - 900 ? TwinsTimeline.RevealStart - 900
 				: now < TwinsTimeline.RevealEnd ? TwinsTimeline.RevealEnd
 				: now;

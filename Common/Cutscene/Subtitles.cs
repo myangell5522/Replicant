@@ -18,7 +18,7 @@ namespace Replicant.Common.Cutscene
 	/// </summary>
 	public class Subtitles : ModSystem
 	{
-		public const int Requiem = 0, Refrain = 1, Both = 2;
+		public const int Requiem = 0, Refrain = 1, Both = 2, Unknown = 3;
 
 		private class Line
 		{
@@ -41,6 +41,9 @@ namespace Replicant.Common.Cutscene
 		}
 
 		public static void Clear() => lines.Clear();
+
+		/// <summary>Someone is speaking right now.</summary>
+		public static bool Busy => lines.Count > 0;
 
 		public override void OnWorldUnload() => lines.Clear();
 
@@ -101,10 +104,32 @@ namespace Replicant.Common.Cutscene
 				nx += font.MeasureString(ch.ToString()).X * 0.78f * s + 2.5f * s;
 			}
 
+			// what they actually sing: the line in their own script (like NieR's chaos language), written
+			// a beat ahead of the translation and drifting faintly, a little dimmer
+			{
+				float gx = x0;
+				float gy = y + font.LineSpacing * scale * 0.95f + 10f * s;
+				int sung = (int)(l.Age * 1.3f);
+				float gScale = 0.85f * s;
+				for (int i = 0; i < text.Length && i < sung; i++) {
+					char ch = text[i];
+					if (ch == ' ') {
+						gx += 9f * s;
+						continue;
+					}
+					if (char.IsPunctuation(ch))
+						continue;
+					int g = (int)(ReUtils.Hash01(char.ToLowerInvariant(ch), 17) * ReTex.GlyphCount);
+					float drift = MathF.Sin(Main.GlobalTimeWrappedHourly * 2.4f + i * 0.5f) * 1.2f * s;
+					sb.Draw(ReTex.GlyphAtlasGlow, new Vector2(gx, gy + drift), ReTex.GlyphFrame(g), (l.Speaker == Unknown ? new Color(140, 180, 255) : new Color(230, 160, 70)).Additive(0.55f * a), 0f, Vector2.Zero, gScale, SpriteEffects.None, 0f);
+					gx += ReTex.GlyphCellW * gScale * 0.82f;
+				}
+			}
+
 			// the line itself
 			int reveal = (int)(l.Age * 0.9f);
 			Texture2D atlas = ReTex.GlyphAtlas;
-			Color gold = l.Speaker == Both ? new Color(255, 226, 150) : new Color(255, 212, 88);
+			Color gold = l.Speaker == Unknown ? new Color(170, 205, 255) : l.Speaker == Both ? new Color(255, 226, 150) : new Color(255, 212, 88);
 			float t = Main.GlobalTimeWrappedHourly;
 			for (int i = 0; i < text.Length && i < reveal; i++) {
 				char ch = text[i];
@@ -134,6 +159,14 @@ namespace Replicant.Common.Cutscene
 
 		private static void DrawPortrait(SpriteBatch sb, int speaker, Vector2 center, float s, float a, int age)
 		{
+			if (speaker == Unknown) {
+				// no face: just the blue eyes from the riddle
+				Texture2D eyes = ReTex.Eyes;
+				int efw = eyes.Width / 6, efh = eyes.Height / 10;
+				FX.Bloom(sb, center, ReUtils.EyeBlue, 40f * s, 0.3f * a);
+				sb.Draw(eyes, center, new Rectangle(0, 0, efw, efh), Color.White * a, 0f, new Vector2(efw / 2f, efh / 2f), 0.9f * s, SpriteEffects.None, 0f);
+				return;
+			}
 			if (speaker == Both) {
 				DrawPortrait(sb, Requiem, center + new Vector2(-14 * s, -4 * s), s * 0.85f, a, age);
 				DrawPortrait(sb, Refrain, center + new Vector2(14 * s, 4 * s), s * 0.85f, a, age);

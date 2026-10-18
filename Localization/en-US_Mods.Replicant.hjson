@@ -5,6 +5,9 @@ NPCs: {
 	Re.DisplayName: Re
 	Requiem.DisplayName: Requiem
 	Refrain.DisplayName: Refrain
+	RecursionHead.DisplayName: Recursion
+	RecursionBody.DisplayName: Recursion
+	RecursionTail.DisplayName: Recursion
 }
 
 Items: {
@@ -33,6 +36,9 @@ Items: {
 			'''
 			[Testing] Opens the dimension (when InnoVault allows it) and wakes Requiem and Refrain
 			While they fight, skips their song ahead to the next story beat
+			In the true fight: calls the Aria, then the Intrusion, then fells Requiem (Refrain's frenzy)
+			With one sister left: fells her (the third verse begins)
+			Against Recursion: drops it to its next threshold (rewind, execute, death)
 			Single player only
 			'''
 	}
@@ -48,6 +54,27 @@ Projectiles: {
 	BellSigil.DisplayName: Bell
 	VerseChain.DisplayName: Line of Verse
 	DuetBeam.DisplayName: Duet
+	VerseNeedle.DisplayName: Needle of Verse
+	RewindEcho.DisplayName: Rewound Echo
+	MusicStand.DisplayName: Music Stand
+	RiftFall.DisplayName: Rift Fall
+	Sanctuary.DisplayName: Sanctuary
+	SkyRift.DisplayName: Sky Rift
+}
+
+Recursion: {
+	NotDone: WE'RE NOT DONE YET.
+	Title: RECURSION
+	Sub: The Verse That Devours
+	Verse: — the third verse —
+	Rewind: << REWIND
+	Execute: EXECUTE.
+
+	Lines: {
+		# a = Requiem, b = Refrain
+		Pleaa: ...No. Not you. Not after everything—
+		Pleab: Wait— no, no, I sang! I sang everything you asked—!
+	}
 }
 
 Bestiary: {
@@ -107,6 +134,66 @@ Twins: {
 	Speaker0: Requiem
 	Speaker1: Refrain
 	Speaker2: Requiem & Refrain
+	Speaker3: ???
+	Parry: Parried
+	ShelterHint: The Verdict is coming. Find the sanctuary of light — nothing outside it will be spared.
+	VerdictDeath: "{0} was read aloud by the Verdict."
+	HackDeath: "{0} was overwritten."
+	ScoreDeath: "{0} lost the beat."
+
+	Score: {
+		Row: Row {0} / {1}
+		Inverse: Inverse — press the opposite
+		Fading: Fading — remember them
+		Clean: Played!
+		Broken: The score breaks
+	}
+
+	Hack: {
+		Title: Intrusion
+		Controls: WASD / arrows: move   ·   Space: dash   ·   firing is automatic
+		Warning: HOST COMPROMISED
+		HintMove: WASD / Arrows — move
+		HintDash: Space / Shift / Right Click — dash through notes
+		HintFire: You fire on your own at the core — hold Left Click to aim
+		HintShell: Break the GOLD shell · BLACK blocks and dark notes can't be destroyed
+		Target: > CORE <
+		Header: INTRUSION // refrain.sys
+		Win: Intrusion Reversed
+		Lose: Overwritten
+	}
+
+	Epilogue: {
+		Title: The First Verse Ends
+		Sub: Something older is still listening.
+	}
+
+	Barks: {
+		Requiem0: Listen closely.
+		Requiem1: Again, from the top.
+		Requiem2: Hold still. It is easier.
+		Requiem3: Every note is for you.
+		Requiem4: Softly now.
+		Requiem5: Do you hear it? That is your name.
+		Requiem6: We were made to sing this.
+		Requiem7: Do not look away.
+		Refrain0: Keep up!
+		Refrain1: Faster, faster!
+		Refrain2: Here — and here — and here!
+		Refrain3: Dance with me!
+		Refrain4: Too slow, too slow!
+		Refrain5: Again! Again!
+		Refrain6: Catch me if you can!
+		Refrain7: Ha — you almost had it!
+		GriefRequiem0: She was the better half of the song.
+		GriefRequiem1: I will sing her part too.
+		GriefRequiem2: You took the only thing I had.
+		GriefRequiem3: Be quiet. Be still. Be gone.
+		GriefRefrain0: Give her back!
+		GriefRefrain1: I'll sing until you break!
+		GriefRefrain2: Sister, sister, sister —
+		GriefRefrain3: Why won't you just DIE?!
+	}
 
 	Lines: {
 		Intro1: Sister... we're awake. Someone came all this way.
@@ -132,6 +219,14 @@ Twins: {
 		Last1a: So this is how the song ends... quietly.
 		Last1b: It's so quiet without her...
 		Last2: Remember us. Even if no one else does.
+		Verdict: Hear the verdict. Hide, if you can.
+		HackWin: You... wrote back into us?!
+		ScoreWin: Hey! That's MY song!
+		ScoreLose: Off-key. As I thought.
+		HackLose: Your code tastes like rust.
+		Epilogue1: ...So the song has ended.
+		Epilogue2: You did well, little one. They sang for me, and you listened.
+		Epilogue3: Come find me at the end of the verse. I have been waiting.
 	}
 
 	Attacks: {
@@ -201,6 +296,26 @@ Twins: {
 		LilyStorm: {
 			Title: Lily Requiem
 			Sub: The field answers their song
+		}
+
+		Aria: {
+			Title: Aria
+			Sub: The sky opens. Nothing beneath it is safe but the sanctuary
+		}
+
+		Intrusion: {
+			Title: Intrusion
+			Sub: She reaches inside you
+		}
+
+		FrenzyRequiem: {
+			Title: Requiem Without End
+			Sub: She will finish the song alone
+		}
+
+		FrenzyRefrain: {
+			Title: Refrain Without End
+			Sub: She sings it again, and again, and again
 		}
 	}
 }

@@ -58,10 +58,10 @@ HEAD_REQUIEM = [
     ".ohHHHHHHHHHhhfhho",
     "ohhHHHHHHhhffffhho",
     "ohhHHHhhffffffhhho",
-    "ohhHhBBBBBBBBBBhho",
-    "ohhBByBByyBByBBhho",
-    "ohhBBBBBBBBBBBBhho",
-    "ohhdfrffffffffdhho",
+    "ohnnnnnnnnnnnnnnKo",
+    "oBByBBByyBBByBBBKK",
+    "oNBBBBBBBBBBBBBNKq",
+    "ohhdDrDDDDDDDDdhho",
     "ohhdfrfffffffbdhho",
     ".ohdbrfffffffffdho",
     ".ohhdrffffmfffdhho",
@@ -79,10 +79,10 @@ HEAD_REFRAIN = [
     ".ohHHHHHHHHHHHHHho",
     "ohhHHHHHHHHHHHHhho",
     "ohhkkkkkkkkkkkkhho",
-    "ohhffffffffffffhho",
-    "ohhfzzzzzzzzzzfhho",
-    "ohhfzzzzzzzzzzfhho",
-    "ohhfffcffffffffhho",
+    "ohhnnnnnnnnnnnnhho",
+    "ohhzzzzzzzzzzzzhKo",
+    "ohhzzzzzzzzzzzzKKq",
+    "ohhDDDcDDDDDDDDhho",
     "ohhdbffcffffffbdho",
     ".ohhdffcffmfffdhho",
     ".ohhhdffffffffdhho",
@@ -98,7 +98,11 @@ HEAD_COLORS = {
     "f": SKIN[3], "F": SKIN[4], "d": SKIN[2], "D": SKIN[1], "b": BLUSH,
     "m": MOUTH, "M": MOUTH_D, "B": OIL[1], "y": GOLD[2], "r": OIL[0], "z": SKIN[3],
     "c": SKIN[1], "Y": GOLDH[1], "w": GOLDH[2],
+    # the blindfold: highlight, cloth, shadow, knot, frayed gold thread
+    "n": CAPE[3], "N": OIL[0], "K": CAPE[2], "q": GOLD[1],
 }
+HEAD_COLORS["B"] = CAPE[1]
+HEAD_COLORS["z"] = CAPE[1]
 
 # micro glyphs for Refrain's eye band (3 x 2)
 MICRO = [
@@ -577,7 +581,7 @@ def put_head(c, twin, pose, bob, i, tilt):
                 c.a[py, px] = 255
                 c.glow[py, px] = 0
                 c.norim[py, px] = True
-                if ch in "yw":
+                if ch in "ywq":
                     glow[py, px] = True
                 if ch == "z":
                     band.append((px, py))
@@ -600,7 +604,7 @@ def put_head(c, twin, pose, bob, i, tilt):
         cells = bw // 3
         # the band itself: an ink smear where the eyes were
         for (px, py) in band:
-            c.rgb[py, px] = SKIN[1] if (px + py + i) % 3 else SKIN[2]
+            c.rgb[py, px] = CAPE[1] if (px + py + i) % 3 else CAPE[0]
         gm = np.zeros((H, W), bool)
         for k in range(cells):
             gph = MICRO[int(rng.integers(0, len(MICRO)))]

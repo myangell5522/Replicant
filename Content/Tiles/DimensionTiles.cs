@@ -38,6 +38,10 @@ namespace Replicant.Content.Tiles
 			Color light = Lighting.GetColor(i, j);
 			int v = (int)(ReUtils.Hash01(i, j) * 4f) & 3;
 			bool up = Solid(i, j - 1), left = Solid(i - 1, j), right = Solid(i + 1, j), down = Solid(i, j + 1);
+			// in the dimension the top of the ground is a smooth skin of oil drawn over the field; the stepped
+			// blocks underneath it are never shown
+			if (Subworld.InDimension && (!up || !Solid(i, j - 2) || !Solid(i, j - 3)))
+				return false;
 			spriteBatch.Draw(tex, pos, new Rectangle(v * 16, 0, 16, 16), light);
 			if (!up) {
 				spriteBatch.Draw(tex, pos, new Rectangle(v * 16, 16, 16, 16), light);

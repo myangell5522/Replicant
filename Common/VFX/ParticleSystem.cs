@@ -163,6 +163,13 @@ namespace Replicant.Common.VFX
 
 		public static void ClearScreen() => screen.Clear();
 
+		/// <summary>Move every world particle (the dimension's loop wrapping around).</summary>
+		public static void ShiftWorld(Vector2 d)
+		{
+			foreach (Particle p in world)
+				p.Position += d;
+		}
+
 		private static void DrawList(SpriteBatch sb, List<Particle> list, Vector2 offset)
 		{
 			// Alpha-blended (smoke, goo) first so additive glows sit on top of them.

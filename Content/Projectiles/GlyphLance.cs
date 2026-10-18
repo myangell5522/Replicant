@@ -91,9 +91,24 @@ namespace Replicant.Content.Projectiles
 			if (!Launched) {
 				float t = Timer / TelegraphTime;
 				float lineOpacity = ReUtils.InverseLerp(0f, 0.3f, t) * (0.55f + 0.45f * MathF.Sin(Timer * 0.6f * (0.5f + t)));
-				Vector2 lineOrigin = new(0f, trail.Height / 2f);
-				sb.Draw(trail, pos, null, ReUtils.DeepGold.Additive(0.4f * lineOpacity), Projectile.rotation, lineOrigin, new Vector2(2400f / trail.Width, 0.35f + t * 0.3f), SpriteEffects.None, 0f);
-				sb.Draw(trail, pos, null, ReUtils.Gold.Additive(0.9f * lineOpacity), Projectile.rotation, lineOrigin, new Vector2(2400f / trail.Width, 0.05f + t * 0.05f), SpriteEffects.None, 0f);
+				// the line fades with distance (no hard grid across the screen), and chevrons race along it
+				Texture2D px = TextureAssets.MagicPixel.Value;
+				Vector2 dir = Direction;
+				const int pieces = 10;
+				float reach = 300f + 1300f * ReUtils.EaseOutCubic(MathHelper.Clamp(t * 1.6f, 0f, 1f));
+				for (int k = 0; k < pieces; k++) {
+					float d0 = reach * k / pieces;
+					float fall = 1f - k / (float)pieces;
+					sb.Draw(px, pos + dir * d0, new Rectangle(0, 0, 1, 1), ReUtils.DeepGold.Additive(0.35f * lineOpacity * fall), Projectile.rotation, new Vector2(0f, 0.5f), new Vector2(reach / pieces, 6f + t * 8f), SpriteEffects.None, 0f);
+					sb.Draw(px, pos + dir * d0, new Rectangle(0, 0, 1, 1), ReUtils.PaleGold.Additive(0.8f * lineOpacity * fall), Projectile.rotation, new Vector2(0f, 0.5f), new Vector2(reach / pieces, 1.5f), SpriteEffects.None, 0f);
+				}
+				for (float d = (Timer * 14f) % 90f; d < reach; d += 90f) {
+					float fall = 1f - d / reach;
+					for (int sgn = -1; sgn <= 1; sgn += 2) {
+						float ar = Projectile.rotation + MathHelper.Pi + sgn * 0.7f;
+						sb.Draw(px, pos + dir * d, new Rectangle(0, 0, 1, 1), ReUtils.Gold.Additive(0.7f * lineOpacity * fall), ar, new Vector2(0f, 0.5f), new Vector2(9f, 2f), SpriteEffects.None, 0f);
+					}
+				}
 				// lance materialising, shaking
 				float fade = ReUtils.InverseLerp(0.2f, 0.9f, t);
 				Vector2 shake = Main.rand.NextVector2Circular(2f, 2f) * t;

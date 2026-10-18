@@ -66,6 +66,7 @@ namespace Replicant.Common.Cutscene
 		private static float fixedBlend;           // 1 = fixedScreen, 0 = follow the world
 		private static int arrivedReal = -1;
 		private static int loadingFrames;
+		private static int settleTicks;
 		private static int relocateTicks;
 		private static readonly List<Stream> streams = new();
 		private static readonly List<FogPuff> fog = new();
@@ -176,12 +177,15 @@ namespace Replicant.Common.Cutscene
 		{
 			fixedScreen = WorldToScreen(bossWorldPos);
 			fixedBlend = 1f;
+			gameScreenW = Main.screenWidth;
+			gameScreenH = Main.screenHeight;
 			SpawnHandledByCutscene = true;
 			Re boss = Boss;
 			boss?.FinishDeathSequence();
 			npcIndex = -1;
 			TravelingToDimension = true;
 			loadingFrames = 0;
+			loadLast = -1;
 			if (!DimensionBridge.Travel()) {
 				// no dimension after all: the fight continues here
 				TravelingToDimension = false;
@@ -200,22 +204,67 @@ namespace Replicant.Common.Cutscene
 			bossWorldPos = Main.LocalPlayer.Bottom;
 			Main.LocalPlayer.velocity = Vector2.Zero;
 			relocateTicks = 4;
+			// the first frames of a new world are heavy; don't let the game "catch up" afterwards by running
+			// a burst of fast updates (that read as the explosion suddenly speeding up)
+			Main.instance.ResetElapsedTime();
+			settleTicks = 3;
 		}
 
 		/// <summary>Drawn by the dimension's loading screen while the worlds are swapped.</summary>
+		/// <summary>
+		/// Covers the whole loading screen (every pixel of the back buffer — the menu runs at its own UI scale, so its
+		/// screen size is not the game's), then draws the burst in the game's own screen space, scaled to fit, so
+		/// the light on the loading screen sits exactly where it stood in the world a frame earlier.
+		/// </summary>
+		public static void DrawLoadingScreen(SpriteBatch sb)
+		{
+			GraphicsDevice gd = Main.instance.GraphicsDevice;
+			int bw = gd.PresentationParameters.BackBufferWidth, bh = gd.PresentationParameters.BackBufferHeight;
+			Viewport old = gd.Viewport;
+			gd.Viewport = new Viewport(0, 0, bw, bh);
+			int gw = gameScreenW > 0 ? gameScreenW : bw, gh = gameScreenH > 0 ? gameScreenH : bh;
+			int sw = Main.screenWidth, sh = Main.screenHeight;
+			try {
+				sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, Matrix.Identity);
+				sb.Draw(TextureAssets.MagicPixel.Value, new Rectangle(-8, -8, bw + 16, bh + 16), Color.Black);
+				sb.End();
+				Main.screenWidth = gw;
+				Main.screenHeight = gh;
+				burstMatrix = Matrix.CreateScale(bw / (float)gw, bh / (float)gh, 1f);
+				sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, burstMatrix);
+				DrawWhileLoading(sb);
+				sb.End();
+			}
+			finally {
+				Main.screenWidth = sw;
+				Main.screenHeight = sh;
+				gd.Viewport = old;
+				burstMatrix = Matrix.Identity;
+			}
+		}
+
+		private static int gameScreenW, gameScreenH;
+		private static readonly System.Diagnostics.Stopwatch loadWatch = System.Diagnostics.Stopwatch.StartNew();
+		private static double loadLast = -1;
+		private static Matrix burstMatrix = Matrix.Identity;
+
 		public static void DrawWhileLoading(SpriteBatch sb)
 		{
 			Texture2D px = TextureAssets.MagicPixel.Value;
-			Rectangle screen = new(0, 0, Main.screenWidth, Main.screenHeight);
+			Rectangle screen = new(-8, -8, Main.screenWidth + 16, Main.screenHeight + 16);
 			sb.Draw(px, screen, Color.Black);
 			loadingFrames++;
 			if (!(TravelingToDimension && Current == Stage.Burst)) {
 				DrawPassage(sb);
 				return;
 			}
-			// hold the peak: time crawls, the streams stay at full height
-			burstClock = MathF.Min(burstClock + 0.15f, 18f);
-			ParticleSystem.UpdateScreen(0.12f);
+			// time keeps crawling at exactly the in-world slow-motion rate, measured in real time (loading frames
+			// arrive unevenly), so the burst never stalls and never has to catch up when the new world appears
+			double now = loadWatch.Elapsed.TotalSeconds;
+			float frames = loadLast < 0 ? 1f : MathHelper.Clamp((float)(now - loadLast) * 60f, 0f, 4f);
+			loadLast = now;
+			burstClock = MathF.Min(burstClock + 0.15f * frames, 90f);
+			ParticleSystem.UpdateScreen(0.15f * frames);
 			if (loadingFrames % 3 == 0) {
 				Vector2 c = BurstCenter;
 				float a = -MathHelper.PiOver2 + Main.rand.NextFloat(-1.3f, 1.3f);
@@ -257,6 +306,9 @@ namespace Replicant.Common.Cutscene
 			return from + new Vector2(0f, 160f);
 		}
 
+		/// <summary>The dimension's loop moved the world under us.</summary>
+		public static void ShiftWorld(Vector2 d) => bossWorldPos += d;
+
 		private static Vector2 BurstCenter {
 			get {
 				Vector2 world = WorldToScreen(bossWorldPos);
@@ -281,6 +333,8 @@ namespace Replicant.Common.Cutscene
 				bossWorldPos = boss.NPC.Center;
 			if (TravelingToDimension && !DimensionBridge.IsTraveling)
 				OnArrivedInDimension();
+			if (settleTicks > 0 && --settleTicks >= 0)
+				Main.instance.ResetElapsedTime();
 			if (relocateTicks > 0) {
 				// the player may be placed at the entry a tick after the stage starts
 				relocateTicks--;
@@ -526,7 +580,7 @@ namespace Replicant.Common.Cutscene
 			ScreenFX.HoldZoom(1f + 0.15f * (1f - ReUtils.EaseOutCubic(real / 300f)));
 			if (arrivedReal >= 0)
 				// a new world under the light: the black thins away while the burst still stands at its peak
-				overlay = 1f - ReUtils.EaseInOutSine((real - arrivedReal - 15) / 170f);
+				overlay = 1f - ReUtils.EaseInOutSine((real - arrivedReal - 24) / 170f);
 			else
 				overlay = 1f - ReUtils.EaseInOutSine((real - 280) / 200f);
 			if (real % 24 == 0 && real < 260)
@@ -1022,7 +1076,7 @@ namespace Replicant.Common.Cutscene
 						Primitives.DrawStrip(pts, trail, tt => st.Width * 4f * (1f - tt * 0.7f), tt => ColorAt(tt) * 0.35f, -bc * 0.01f, 3f, worldSpace: false);
 				}
 			}
-			sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
+			sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, burstMatrix);
 
 			// hot knots along the central columns
 			foreach (Stream s in streams) {
@@ -1075,7 +1129,7 @@ namespace Replicant.Common.Cutscene
 	/// <summary>Locks the player during cutscenes/cinematics and makes them untouchable.</summary>
 	public class CutscenePlayer : ModPlayer
 	{
-		private static bool Locked => RiddleCutscene.Active || Cinematic.Locked;
+		private static bool Locked => RiddleCutscene.Active || Cinematic.Locked || HackSequence.Active;
 
 		public override void SetControls()
 		{
